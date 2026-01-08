@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createActivity, updateActivity, deleteActivity } from '../db';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function ActivityForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const isEditing = id !== 'new' && id !== undefined;
+  const activityId = id && id !== 'new' ? Number(id) : null;
+  const isEditing = activityId !== null;
 
   const existingActivity = useLiveQuery(
-    () => (isEditing ? db.activities.get(Number(id)) : undefined),
-    [id, isEditing]
+    () => (isEditing ? db.activities.get(activityId) : undefined),
+    [activityId, isEditing]
   );
 
   const [name, setName] = useState('');
@@ -18,7 +20,9 @@ export function ActivityForm() {
   const [upperBound, setUpperBound] = useState('');
   const [startingValue, setStartingValue] = useState('');
   const [hasUpperBound, setHasUpperBound] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(!isEditing);
 
   useEffect(() => {
     if (existingActivity) {
@@ -27,41 +31,46 @@ export function ActivityForm() {
       setHasUpperBound(existingActivity.upperBound !== null);
       setUpperBound(existingActivity.upperBound !== null ? String(existingActivity.upperBound) : '');
       setStartingValue(String(existingActivity.currentValue));
+      setIsLoaded(true);
     }
   }, [existingActivity]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
-    const lowerBoundNum = parseInt(lowerBound, 10) || 0;
+    setIsSaving(true);
+
+    const lowerBoundNum = parseInt(lowerBound, 10);
+    const finalLowerBound = isNaN(lowerBoundNum) ? 0 : lowerBoundNum;
     const upperBoundNum = hasUpperBound && upperBound ? parseInt(upperBound, 10) : null;
     const startingValueNum = startingValue ? parseInt(startingValue, 10) : undefined;
 
-    if (isEditing && existingActivity) {
-      await updateActivity(existingActivity.id, {
-        name,
-        lowerBound: lowerBoundNum,
-        upperBound: upperBoundNum,
-      });
-      navigate(`/activity/${existingActivity.id}`);
-    } else {
-      const newId = await createActivity(name, lowerBoundNum, upperBoundNum, startingValueNum);
-      navigate(`/activity/${newId}`);
+    try {
+      if (isEditing && activityId) {
+        await updateActivity(activityId, {
+          name,
+          lowerBound: finalLowerBound,
+          upperBound: upperBoundNum,
+        });
+        navigate(`/activity/${activityId}`);
+      } else {
+        const newId = await createActivity(name, finalLowerBound, upperBoundNum, startingValueNum);
+        navigate(`/activity/${newId}`);
+      }
+    } catch (error) {
+      console.error('Failed to save activity:', error);
+      setIsSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!existingActivity) return;
-
-    if (isDeleting) {
-      await deleteActivity(existingActivity.id);
-      navigate('/');
-    } else {
-      setIsDeleting(true);
-    }
+  const handleDeleteConfirm = async () => {
+    if (!activityId) return;
+    await deleteActivity(activityId);
+    navigate('/');
   };
 
-  if (isEditing && existingActivity === undefined) {
+  if (isEditing && !isLoaded) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-pulse text-gray-500">Loading...</div>
@@ -69,7 +78,7 @@ export function ActivityForm() {
     );
   }
 
-  if (isEditing && existingActivity === null) {
+  if (isEditing && isLoaded && existingActivity === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -180,9 +189,10 @@ export function ActivityForm() {
           <div className="pt-4">
             <button
               type="submit"
-              className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors"
+              disabled={isSaving}
+              className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isEditing ? 'Save Changes' : 'Create Activity'}
+              {isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Activity'}
             </button>
           </div>
 
@@ -190,19 +200,26 @@ export function ActivityForm() {
             <div className="pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={handleDelete}
-                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                  isDeleting
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-red-50 text-red-600 hover:bg-red-100'
-                }`}
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full py-3 px-4 rounded-lg font-medium transition-colors bg-red-50 text-red-600 hover:bg-red-100"
               >
-                {isDeleting ? 'Tap again to confirm delete' : 'Delete Activity'}
+                Delete Activity
               </button>
             </div>
           )}
         </form>
       </main>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Activity"
+        message={`Are you sure you want to delete "${name}"? This will also delete all associated entries and cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
