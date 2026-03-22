@@ -3,12 +3,14 @@ import { ActivityList } from './pages/ActivityList';
 import { ActivityForm } from './pages/ActivityForm';
 import { ActivityDetail } from './pages/ActivityDetail';
 import { EntryLog } from './pages/EntryLog';
+import { About } from './pages/About';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ActivityList />} />
+        <Route path="/about" element={<About />} />
         <Route path="/activity/new" element={<ActivityForm />} />
         <Route path="/activity/:id" element={<ActivityDetail />} />
         <Route path="/activity/:id/edit" element={<ActivityForm />} />
