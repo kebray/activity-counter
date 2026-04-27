@@ -1,6 +1,5 @@
 import { db, type Activity, type Entry } from './database';
 
-// Activity operations
 export async function createActivity(
   name: string,
   lowerBound: number = 0,
@@ -8,11 +7,13 @@ export async function createActivity(
   startingValue?: number
 ): Promise<number> {
   const now = new Date();
+  const count = await db.activities.count();
   return db.activities.add({
     name,
     lowerBound,
     upperBound,
     currentValue: startingValue ?? lowerBound,
+    sortOrder: count,
     createdAt: now,
     updatedAt: now,
   } as Activity);
@@ -40,10 +41,9 @@ export async function getActivity(id: number): Promise<Activity | undefined> {
 }
 
 export async function getAllActivities(): Promise<Activity[]> {
-  return db.activities.orderBy('updatedAt').reverse().toArray();
+  return db.activities.orderBy('sortOrder').toArray();
 }
 
-// Entry operations
 export async function incrementActivity(
   activityId: number,
   note: string = ''
@@ -54,7 +54,6 @@ export async function incrementActivity(
 
     const newValue = activity.currentValue + 1;
 
-    // Don't exceed upper bound if set
     if (activity.upperBound !== null && newValue > activity.upperBound) {
       return;
     }
@@ -84,7 +83,6 @@ export async function decrementActivity(
 
     const newValue = activity.currentValue - 1;
 
-    // Don't go below lower bound
     if (newValue < activity.lowerBound) {
       return;
     }
@@ -101,6 +99,35 @@ export async function decrementActivity(
       currentValue: newValue,
       updatedAt: new Date(),
     });
+  });
+}
+
+export async function resetActivity(activityId: number): Promise<void> {
+  await db.transaction('rw', db.activities, db.entries, async () => {
+    const activity = await db.activities.get(activityId);
+    if (!activity) throw new Error('Activity not found');
+    if (activity.currentValue === activity.lowerBound) return;
+
+    await db.entries.add({
+      activityId,
+      previousValue: activity.currentValue,
+      newValue: activity.lowerBound,
+      note: 'Counter reset',
+      timestamp: new Date(),
+    } as Entry);
+
+    await db.activities.update(activityId, {
+      currentValue: activity.lowerBound,
+      updatedAt: new Date(),
+    });
+  });
+}
+
+export async function reorderActivities(orderedIds: number[]): Promise<void> {
+  await db.transaction('rw', db.activities, async () => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.activities.update(orderedIds[i], { sortOrder: i });
+    }
   });
 }
 

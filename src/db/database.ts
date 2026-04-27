@@ -6,6 +6,7 @@ export interface Activity {
   lowerBound: number;
   upperBound: number | null;
   currentValue: number;
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,16 @@ const db = new Dexie('ActivityTrackerDB') as Dexie & {
 db.version(1).stores({
   activities: '++id, name, createdAt, updatedAt',
   entries: '++id, activityId, timestamp',
+});
+
+db.version(2).stores({
+  activities: '++id, name, createdAt, updatedAt, sortOrder',
+  entries: '++id, activityId, timestamp',
+}).upgrade(async tx => {
+  const activities = await tx.table('activities').orderBy('createdAt').toArray();
+  for (let i = 0; i < activities.length; i++) {
+    await tx.table('activities').update(activities[i].id, { sortOrder: i });
+  }
 });
 
 export { db };

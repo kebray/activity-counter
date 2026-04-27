@@ -140,15 +140,23 @@ export function EntryLog() {
                         <>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <span
-                                className={`text-sm font-medium px-2 py-0.5 rounded ${
-                                  entry.newValue > entry.previousValue
-                                    ? 'bg-green-50 text-green-600'
-                                    : 'bg-red-50 text-red-600'
-                                }`}
-                              >
-                                {entry.newValue > entry.previousValue ? '+1' : '-1'}
-                              </span>
+                              {(() => {
+                                const diff = entry.newValue - entry.previousValue;
+                                const isReset = diff < -1;
+                                return (
+                                  <span
+                                    className={`text-sm font-medium px-2 py-0.5 rounded ${
+                                      isReset
+                                        ? 'bg-amber-50 text-amber-600'
+                                        : diff > 0
+                                          ? 'bg-green-50 text-green-600'
+                                          : 'bg-red-50 text-red-600'
+                                    }`}
+                                  >
+                                    {isReset ? 'Reset' : diff > 0 ? `+${diff}` : `${diff}`}
+                                  </span>
+                                );
+                              })()}
                               <span className="text-gray-900 font-medium">
                                 {entry.previousValue} → {entry.newValue}
                               </span>
