@@ -54,10 +54,6 @@ export async function incrementActivity(
 
     const newValue = activity.currentValue + 1;
 
-    if (activity.upperBound !== null && newValue > activity.upperBound) {
-      return;
-    }
-
     await db.entries.add({
       activityId,
       previousValue: activity.currentValue,

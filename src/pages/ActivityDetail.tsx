@@ -40,13 +40,11 @@ export function ActivityDetail() {
     );
   }
 
-  const canIncrement = activity.upperBound === null || activity.currentValue < activity.upperBound;
   const canDecrement = activity.currentValue > activity.lowerBound;
   const canReset = activity.currentValue > activity.lowerBound;
   const isComplete = activity.upperBound !== null && activity.currentValue >= activity.upperBound;
 
   const handleIncrement = async () => {
-    if (!canIncrement) return;
     await incrementActivity(activityId, note);
     setNote('');
     setShowNoteInput(false);
@@ -158,12 +156,7 @@ export function ActivityDetail() {
             </button>
             <button
               onClick={handleIncrement}
-              disabled={!canIncrement}
-              className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold transition-all ${
-                canIncrement
-                  ? 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
+              className="w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold transition-all bg-blue-500 text-white hover:bg-blue-600 active:scale-95"
               aria-label="Increment"
             >
               +

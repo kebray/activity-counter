@@ -12,12 +12,6 @@ export function ActivityCard({ activity, onIncrement }: ActivityCardProps) {
   const handleQuickIncrement = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Check if already at max
-    if (activity.upperBound !== null && activity.currentValue >= activity.upperBound) {
-      return;
-    }
-
     await incrementActivity(activity.id);
     onIncrement?.();
   };
@@ -34,18 +28,13 @@ export function ActivityCard({ activity, onIncrement }: ActivityCardProps) {
           <h3 className="text-lg font-semibold text-gray-900 truncate">{activity.name}</h3>
           {isComplete && (
             <span className="inline-block mt-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-              Complete
+              Goal reached
             </span>
           )}
         </div>
         <button
           onClick={handleQuickIncrement}
-          disabled={isComplete}
-          className={`ml-3 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold transition-all ${
-            isComplete
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
-          }`}
+          className="ml-3 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold transition-all bg-blue-500 text-white hover:bg-blue-600 active:scale-95"
           aria-label="Increment activity"
         >
           +
