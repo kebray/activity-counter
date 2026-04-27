@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, incrementActivity, decrementActivity } from '../db';
+import { db, incrementActivity, decrementActivity, resetActivity } from '../db';
 import { ProgressBar } from '../components/ProgressBar';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function ActivityDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ export function ActivityDetail() {
 
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   if (activity === undefined || entries === undefined) {
     return (
@@ -40,6 +42,7 @@ export function ActivityDetail() {
 
   const canIncrement = activity.upperBound === null || activity.currentValue < activity.upperBound;
   const canDecrement = activity.currentValue > activity.lowerBound;
+  const canReset = activity.currentValue > activity.lowerBound;
   const isComplete = activity.upperBound !== null && activity.currentValue >= activity.upperBound;
 
   const handleIncrement = async () => {
@@ -54,6 +57,11 @@ export function ActivityDetail() {
     await decrementActivity(activityId, note);
     setNote('');
     setShowNoteInput(false);
+  };
+
+  const handleReset = async () => {
+    await resetActivity(activityId);
+    setShowResetConfirm(false);
   };
 
   const formatDate = (date: Date) => {
@@ -77,19 +85,37 @@ export function ActivityDetail() {
             </Link>
             <h1 className="text-xl font-bold text-gray-900 truncate">{activity.name}</h1>
           </div>
-          <Link
-            to={`/activity/${activityId}/edit`}
-            className="text-gray-600 hover:text-gray-900 p-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          </Link>
+          <div className="flex items-center gap-1">
+            {canReset && (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="text-gray-600 hover:text-gray-900 p-2"
+                aria-label="Reset counter"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M1 4v6h6M3.51 15a9 9 0 102.13-9.36L1 10"
+                  />
+                </svg>
+              </button>
+            )}
+            <Link
+              to={`/activity/${activityId}/edit`}
+              className="text-gray-600 hover:text-gray-900 p-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -201,15 +227,23 @@ export function ActivityDetail() {
                 <div key={entry.id} className="px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`text-sm font-medium px-2 py-0.5 rounded ${
-                          entry.newValue > entry.previousValue
-                            ? 'bg-green-50 text-green-600'
-                            : 'bg-red-50 text-red-600'
-                        }`}
-                      >
-                        {entry.newValue > entry.previousValue ? '+1' : '-1'}
-                      </span>
+                      {(() => {
+                        const diff = entry.newValue - entry.previousValue;
+                        const isReset = diff < -1;
+                        return (
+                          <span
+                            className={`text-sm font-medium px-2 py-0.5 rounded ${
+                              isReset
+                                ? 'bg-amber-50 text-amber-600'
+                                : diff > 0
+                                  ? 'bg-green-50 text-green-600'
+                                  : 'bg-red-50 text-red-600'
+                            }`}
+                          >
+                            {isReset ? 'Reset' : diff > 0 ? `+${diff}` : `${diff}`}
+                          </span>
+                        );
+                      })()}
                       <span className="text-gray-900">{entry.previousValue} → {entry.newValue}</span>
                     </div>
                     <span className="text-sm text-gray-500">{formatDate(entry.timestamp)}</span>
@@ -223,6 +257,16 @@ export function ActivityDetail() {
           )}
         </div>
       </main>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset Counter"
+        message={`Reset "${activity.name}" from ${activity.currentValue} back to ${activity.lowerBound}?`}
+        confirmLabel="Reset"
+        onConfirm={handleReset}
+        onCancel={() => setShowResetConfirm(false)}
+        variant="danger"
+      />
     </div>
   );
 }

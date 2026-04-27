@@ -17,7 +17,7 @@ export function ActivityList() {
   const [dragOffset, setDragOffset] = useState(0);
   const [localOrder, setLocalOrder] = useState<number[]>([]);
 
-  const longPressTimer = useRef<ReturnType<typeof setTimeout>>();
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const startY = useRef(0);
   const dragStartIndex = useRef(0);
   const slotHeight = useRef(0);
