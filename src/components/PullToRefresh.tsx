@@ -9,11 +9,9 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef(0);
   const pulling = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const currentDistance = useRef(0);
 
-  const isAtTop = useCallback(() => {
-    return window.scrollY <= 0;
-  }, []);
+  const isAtTop = useCallback(() => window.scrollY <= 0, []);
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
@@ -29,25 +27,29 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
       const dy = e.touches[0].clientY - startY.current;
       if (dy < 0) {
         pulling.current = false;
+        currentDistance.current = 0;
         setPullDistance(0);
         return;
       }
 
       if (dy > 10 && isAtTop()) {
         const distance = Math.min(dy * RESISTANCE, MAX_PULL);
+        currentDistance.current = distance;
         setPullDistance(distance);
       }
     };
 
     const onTouchEnd = () => {
-      if (!pulling.current && pullDistance === 0) return;
+      if (!pulling.current && currentDistance.current === 0) return;
       pulling.current = false;
 
-      if (pullDistance >= THRESHOLD) {
+      if (currentDistance.current >= THRESHOLD) {
         setRefreshing(true);
+        currentDistance.current = THRESHOLD;
         setPullDistance(THRESHOLD);
-        window.location.reload();
+        setTimeout(() => window.location.reload(), 300);
       } else {
+        currentDistance.current = 0;
         setPullDistance(0);
       }
     };
@@ -61,21 +63,21 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('touchend', onTouchEnd);
     };
-  }, [pullDistance, refreshing, isAtTop]);
+  }, [refreshing, isAtTop]);
 
   const progress = Math.min(pullDistance / THRESHOLD, 1);
   const rotation = progress * 360;
   const showIndicator = pullDistance > 10;
 
   return (
-    <div ref={containerRef}>
+    <div>
       {showIndicator && (
         <div
           className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none"
-          style={{ paddingTop: pullDistance - 40 }}
+          style={{ paddingTop: Math.max(pullDistance - 40, 8) }}
         >
           <div
-            className="w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center"
+            className="w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center border border-gray-200"
             style={{ opacity: Math.min(progress * 1.5, 1) }}
           >
             {refreshing ? (
@@ -89,14 +91,9 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                style={{ transform: `rotate(${rotation}deg)` }}
+                style={{ transform: `rotate(${rotation}deg)`, transition: 'transform 50ms linear' }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M1 4v6h6M3.51 15a9 9 0 102.13-9.36L1 10"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             )}
           </div>
@@ -105,7 +102,7 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
       <div
         style={{
           transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined,
-          transition: pulling.current ? undefined : 'transform 300ms ease',
+          transition: !pulling.current ? 'transform 300ms ease' : undefined,
         }}
       >
         {children}

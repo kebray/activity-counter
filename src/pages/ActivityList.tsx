@@ -25,6 +25,7 @@ export function ActivityList() {
   const preventClickRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
   const preDragCleanupRef = useRef<(() => void) | null>(null);
+  const contextMenuHandlerRef = useRef<((e: Event) => void) | null>(null);
 
   const cancelLongPress = useCallback(() => {
     if (longPressTimer.current) {
@@ -51,18 +52,26 @@ export function ActivityList() {
       }
     };
 
+    const onContextMenu = (ce: Event) => {
+      ce.preventDefault();
+    };
+
     const cleanupPreDrag = () => {
       document.removeEventListener('pointermove', onPreDragMove);
       document.removeEventListener('pointerup', cleanupPreDrag);
+      document.removeEventListener('contextmenu', onContextMenu);
       preDragCleanupRef.current = null;
     };
 
     document.addEventListener('pointermove', onPreDragMove);
     document.addEventListener('pointerup', cleanupPreDrag);
+    document.addEventListener('contextmenu', onContextMenu);
     preDragCleanupRef.current = cleanupPreDrag;
 
     longPressTimer.current = setTimeout(() => {
       cleanupPreDrag();
+      // Keep context menu suppressed during drag
+      document.addEventListener('contextmenu', onContextMenu);
 
       if (!listRef.current || !activities) return;
 
@@ -79,6 +88,7 @@ export function ActivityList() {
       const idx = order.indexOf(activityId);
       dragStartIndex.current = idx;
       localOrderRef.current = order;
+      contextMenuHandlerRef.current = onContextMenu;
 
       setLocalOrder(order);
       setDraggedId(activityId);
@@ -119,6 +129,10 @@ export function ActivityList() {
       setDragOffset(0);
       preventClickRef.current = true;
       setTimeout(() => { preventClickRef.current = false; }, 300);
+      if (contextMenuHandlerRef.current) {
+        document.removeEventListener('contextmenu', contextMenuHandlerRef.current);
+        contextMenuHandlerRef.current = null;
+      }
     };
 
     const preventScroll = (e: TouchEvent) => {
@@ -221,6 +235,7 @@ export function ActivityList() {
                         : undefined,
                     zIndex: isThisDragged ? 50 : isDragging ? 1 : undefined,
                     position: 'relative',
+                    touchAction: isDragging ? 'none' : undefined,
                     WebkitTouchCallout: 'none',
                     userSelect: isDragging ? 'none' : undefined,
                   }}
