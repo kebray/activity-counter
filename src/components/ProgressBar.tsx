@@ -26,21 +26,22 @@ export function ProgressBar({ current, min, max, showPercentage = true }: Progre
 
   const range = max - min;
   const progress = range > 0 ? ((current - min) / range) * 100 : 0;
-  const clampedProgress = Math.min(100, Math.max(0, progress));
+  const barWidth = Math.min(100, Math.max(0, progress));
   const isComplete = current >= max;
+  const isOver = current > max;
 
   return (
     <div className="w-full">
       <div className="flex justify-between text-sm text-gray-600 mb-1">
         <span>{current} / {max}</span>
-        {showPercentage && <span>{Math.round(clampedProgress)}%</span>}
+        {showPercentage && <span>{Math.round(progress)}%</span>}
       </div>
       <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-300 ${
-            isComplete ? 'bg-green-500' : 'bg-blue-500'
+            isOver ? 'bg-amber-500' : isComplete ? 'bg-green-500' : 'bg-blue-500'
           }`}
-          style={{ width: `${clampedProgress}%` }}
+          style={{ width: `${barWidth}%` }}
         />
       </div>
     </div>
